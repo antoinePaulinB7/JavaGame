@@ -1,0 +1,23 @@
+package monde;
+
+import java.awt.Color;
+
+import javax.swing.JPanel;
+
+/**
+ * L'affichage quand le joueur est mort
+ * @author Mihai
+ *
+ */
+public class MenuMort extends JPanel {
+
+	private static final long serialVersionUID = 1L;
+	
+	/**
+	 * Constructeur de l'affichage
+	 */
+	public MenuMort() {
+		setBackground(Color.BLACK);
+	}
+
+}

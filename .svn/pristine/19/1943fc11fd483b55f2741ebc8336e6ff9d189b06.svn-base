@@ -1,0 +1,192 @@
+package environnement;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
+
+import entites.EntitePhysique;
+import interfaces.Constantes;
+import interfaces.Dessinable;
+import interfaces.Enumerations.Effet;
+
+/**
+ * Classe qui gere la creation des plateformes 
+ * et de leur effet sur les autres objets du monde
+ * @author Antoine
+ *
+ */
+public class Plateforme extends Environnement implements Dessinable {
+	private double positionX, positionY;
+	private Rectangle2D.Double zoneCollision, zoneVisuelle;
+	private Effet effet = Effet.GAZON;
+	private double forceNormale, forceFriction;
+	private int biome = 0;
+	
+	/**
+	 * Constructeur d'une plateforme normale
+	 * @param positionX La composante x de la position d'une plateforme
+	 * @param positionY La composante y de la position d'une plateforme
+	 */
+	public Plateforme(double positionX, double positionY, int biome){
+		this.positionX = positionX;
+		this.positionY = positionY;
+		this.biome = biome;
+		zoneVisuelle = new Rectangle2D.Double(positionX, positionY, 4, 1);
+		zoneCollision = new Rectangle2D.Double(positionX, positionY, 4, 1);
+	}
+	/**
+	 * Constructeur d'une plateforme avec un effet
+	 * @param positionX La composante x de la position d'une plateforme
+	 * @param positionY La composante y de la position d'une plateforme
+	 * @param effet Un effet 
+	 */
+	public Plateforme(double positionX, double positionY, Effet effet, int biome){
+		this(positionX,positionY, biome);
+		this.effet = effet;
+	}
+	/**
+	 * Constructeur d'une plateforme a l'aide de blocs
+	 * @param blocs Liste de blocs
+	 */
+	public Plateforme(ArrayList<Bloc> blocs, int biome){
+		this.positionX = blocs.get(0).getPositionX();
+		this.positionY = blocs.get(0).getPositionY();
+		this.biome = biome;
+
+		zoneVisuelle = new Rectangle2D.Double(positionX, positionY, blocs.size(), 1);
+		zoneCollision = new Rectangle2D.Double(positionX, positionY, blocs.size(), 1);
+		//sprite = new Sprite("plateforme");
+	}
+	/**
+	 * Constructeur d'une plateformme a l'aide de blocs qui ont un effet
+	 * @param blocs Liste de blocs
+	 * @param effet Un effet
+	 */
+	public Plateforme(ArrayList<Bloc> blocs, int biome, Effet effet){
+		this(blocs, biome);
+		this.effet = effet;
+	}
+	/**
+	 * Teste si la plateforme est en contact avec un objet	
+	 * @param obj Un objet
+	 * @return Si la plateforme est en contact avec un objet
+	 */
+	public boolean contact(Object obj){
+		return false;
+	}
+	/**
+	 * Gere l'effet du contact avec un objet
+	 * @param obj Un objet
+	 */
+	public void effetContactBloc(Object obj){
+		effetContact(obj);
+		EntitePhysique ent = (EntitePhysique)obj;
+		double coef = 1;
+		forceFriction = 0;
+		forceNormale = Constantes.K_GRAVITE*ent.getMasse();
+		switch(effet){		
+		case BOUE:
+			coef = 1.1;
+			break;
+		case DONUT:
+			coef = 0.6;
+			break;
+		case GAZON:
+			coef = 0.9;
+			break;
+		case GLACE:
+			coef = 0.4;
+			break;
+		case MONTAGNE:
+			coef = 0.9;
+			break;
+		case PIERRE:
+			coef = 0.9;
+			break;
+		case SABLE:
+			coef = 1.1;
+			break;
+		case SHADOW:
+			coef = 0.9;
+			break;
+		case TASSE:
+			coef = 0.7;
+			break;
+		case VOLCANIQUE:
+			coef = 0.8;
+			break;
+		}
+		forceFriction = ent.getVitesse().getComposanteVitesseX() > 0 ? -coef*forceNormale : coef*forceNormale;	
+	}
+	/**
+	 * Dessine la plateforme
+	 * @param g2d Le contexte graphique
+	 * @param mat Une matrice de transformation
+	 */
+	@Override
+	public void dessiner(Graphics2D g2d, AffineTransform mat) {
+		Color couleurDepart = g2d.getColor();
+		//g2d.setColor(Color.green);
+		//g2d.fill(mat.createTransformedShape(zoneCollision));
+		
+		AffineTransform matSprite = new AffineTransform(mat);
+		matSprite.translate(positionX, positionY+1);
+		matSprite.scale(zoneVisuelle.width/Constantes.plateformes[biome].getLargeur(), -1/Constantes.plateformes[biome].getLargeur());
+		Constantes.plateformes[biome].dessiner(g2d, matSprite);
+		
+		g2d.setColor(couleurDepart);
+	}
+	/**
+	 * Envoye les parametres d'une plateforme en chaine de caracteres
+	 * @return Une chaine de caracteres
+	 */
+	public String toString() {
+		return "Plateforme [positionX=" + positionX + ", positionY=" + positionY + ", zoneCollision=" + zoneCollision
+				+ ", effet=" + effet + "]";
+	}
+	/**
+	 * Envoye la force de friction
+	 * @return forceFriction La force de friction
+	 */
+	public double getForceFriction() {
+		return forceFriction;
+	}
+	/**
+	 * Envoye la zone de collision
+	 * @return zoneCollision La zone de collision
+	 */
+	public Rectangle2D.Double getZoneCollision(){
+		return zoneCollision;
+	}
+	/**
+	 * Definit la zone de collision
+	 * @param zoneCollision La zone de collision
+	 */
+	public void setZoneCollision(Rectangle2D.Double zoneCollision) {
+		this.zoneCollision = zoneCollision;
+	}
+	/**
+	 * Definit l'effet de la plateforme
+	 * @param effet Un effet
+	 */
+	public void setEffet(Effet effet){
+		this.effet = effet;
+	}
+	/**
+	 * Retourne la position X
+	 * @return la valeur x de la position dans l'espace
+	 */
+	public double getPositionX() {
+		return positionX;
+	}
+	/**
+	 * Retourne la position Y
+	 * @return la valeur y de la position dans l'espace
+	 */
+	public double getPositionY() {
+		return positionY;
+	}	
+	
+}

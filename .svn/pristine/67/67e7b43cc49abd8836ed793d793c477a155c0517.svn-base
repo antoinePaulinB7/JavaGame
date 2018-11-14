@@ -1,0 +1,170 @@
+package personnages;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import interfaces.Constantes;
+import item.Item;
+import monde.InformationsJeu;
+
+/**
+ * Classe qui gere la creation des quetes
+ * @author Mihai
+ *
+ */
+public class Quest {
+	private final int TOTAL_QUESTS = 7;
+	private int questType, biomeToFind = -1, differentMonstersToKill = -1, anyMonstersToKill = -1, itemIdToFind = -1;
+	private int niveau;
+	private List<Integer> specificMonstersToKill = new ArrayList<Integer>();
+	private List<Integer> differentMonstersKilled = new ArrayList<Integer>();
+	private Random random = new Random();
+	private InformationsJeu infos;
+	
+	/**
+	 * Creation d'une quete
+	 * @param infos Le bloc d'informations dans le monde
+	 */
+	public Quest(InformationsJeu infos) {
+		this.infos = infos;
+		startQuest();
+	}
+	/**
+	 * Commence une nouvelle quete
+	 */
+	private void startQuest() {
+		int bonusQuests = niveau > 9 ? 1 : 0;
+		questType = random.nextInt(TOTAL_QUESTS + bonusQuests);
+		switch (questType) {
+		case 0 : 
+			biomeToFind = random.nextInt(10);
+			infos.addText("Trouver le biome " + Constantes.nomBiomes[biomeToFind]);
+			break;
+		case 1 : 
+			infos.addText("Videz un tableau de monstres");
+			break;
+		case 2 : 
+			differentMonstersToKill = random.nextInt(5) + 2;
+			infos.addText("Tuer " + differentMonstersToKill + " monstres differents");
+			break;
+		case 3 :
+			int randomLength = random.nextInt(4) + 1;
+			String specific = "";
+			for (int i = 0; i < randomLength; i++) {
+				boolean differentBiomeNotFound = true;
+				int biome;
+				do {
+					biome = random.nextInt(10);
+					if (specificMonstersToKill.contains(biome)) biome = random.nextInt(10);
+					else differentBiomeNotFound = false;
+				} while(differentBiomeNotFound);
+				specificMonstersToKill.add(biome);	
+				specific += Constantes.nomBiomes[biome];
+			}
+			infos.addText("Tuez des monstres dans les biomes suivants : " + specific);
+			break;
+		case 4 : 
+			anyMonstersToKill = random.nextInt(6) + 3;
+			infos.addText("Tuer " + anyMonstersToKill + " monstres");
+			break;
+		case 5 : 
+			itemIdToFind = random.nextInt(18);
+			String idEpee = itemIdToFind+"";
+			if (idEpee.length() == 1) idEpee = "0" + idEpee;
+			Item epee = new Item(idEpee);
+			infos.addText("Trouver l'épée suivante : " + epee.getNomItem());
+			break;
+		case 6 : 
+			itemIdToFind = random.nextInt(10) + 18;
+			Item bouclier = new Item(itemIdToFind+"");
+			infos.addText("Trouver le bouclier suivant : " + bouclier.getNomItem());
+			break;
+		case 7 :
+			//si paradis et enfer deja trouve alors ne plus donner cette quete
+			//si paradis trouve alors envoyer vers enfer
+			//si enfer trouve alors envoyer vers paradis
+			//sinon choisir entre enfer et paradis
+			break;
+		}
+	}
+	/**
+	 * Fini une quete
+	 */
+	public void finish() {
+		infos.addText("Quête fini!");
+		reinitialiser();		
+		startQuest();
+	}
+	/**
+	 * Reinitialise les varibales apres qu'une quete soit fini
+	 */
+	private void reinitialiser() {
+		biomeToFind = -1;
+		differentMonstersToKill = -1;
+		anyMonstersToKill = -1;
+	}
+	/**
+	 * Envoye le genre de la quete
+	 * @return questType Le genre de la quete
+	 */
+	public int getQuestType() {
+		return questType;
+	}
+	/**
+	 * Envoye le biome qu'il faut trouver
+	 * @return biomeToFind Le biome
+	 */
+	public int getBiomeToFind() {
+		return biomeToFind;
+	}
+	/**
+	 * Ajoute un monstre dans la liste des monstres differents s'il n'existe pas deja
+	 * @param biome Le biome du monstre tue
+	 */
+	public void addDifferentMonsterKilled(int biome) {
+		if (!differentMonstersKilled.contains(biome)) {
+			differentMonstersKilled.add(biome);
+			differentMonstersToKill--;
+			infos.addText("Il vous reste " + differentMonstersToKill + " monstres differents a tuer");
+			if (differentMonstersToKill == 0)
+				finish();
+		}
+	}
+	/**
+	 * Envoye la liste des biomes de monstres specifiques qu'il faut tuer
+	 * @return specificMonstersToKill La liste des biomes
+	 */
+	public List<Integer> getSpecificMonstersToKill() {
+		return specificMonstersToKill;
+	}
+	/**
+	 * Modifie la liste des monstres specifiques qu'il faut tuer
+	 * @param tempList La nouvelle liste
+	 */
+	public void setSpecificMonstersToKill(List<Integer> tempList) {
+		this.specificMonstersToKill = tempList;
+		if (specificMonstersToKill.isEmpty()) finish();
+		else  {
+			infos.addText("Il vous reste les monstres suivants à tuer.");
+			for (int mons : specificMonstersToKill)
+				System.out.print(mons + "  ");
+		}
+	}
+	/**
+	 * Met a jour le nombre total des monstres tues
+	 */
+	public void anyMonsterKilled() {
+		anyMonstersToKill--;
+		if (anyMonstersToKill == 0) finish();
+		else infos.addText("Il vous reste " + anyMonstersToKill + " monstres a tuer");
+		
+	}
+	/**
+	 * Definit le niveau du joueur
+	 * @param niveau Le niveau
+	 */
+	public void setNiveau(int niveau) {
+		this.niveau = niveau;
+	}
+}
