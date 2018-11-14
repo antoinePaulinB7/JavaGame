@@ -1,0 +1,256 @@
+package entites;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
+import java.util.List;
+
+import environnement.Plateforme;
+import intelligence.PathFinding;
+import interfaces.Constantes;
+import interfaces.Enumerations.Etat;
+import monde.Monde;
+import personnages.StatsMonstres;
+
+/**
+ * Classe qui gere la creation d'un monstre
+ * @author Mihai
+ * @author Olivier
+ *
+ */
+public class Monstre extends EntitePhysique {
+
+	private static final long serialVersionUID = 1L;
+	private static final double VIE_DE_BASE = 10, DEGATS_DE_BASE = 5, EXPERIENCE_DE_BASE = 250;
+	private double valeurDifficulte = 1, degatsFaits, hauteurBarre = 0.2;
+	private boolean vise, droite = true;
+	private int gold = 1;
+	private StatsMonstres monstre;
+	private Etat etat = Etat.IMMOBILE;
+	private int nbreFrame = 0;
+	private double nightTimeMultiplier = 1;
+	//private boolean peutDeplacer = true;
+	
+	/**
+	 * Constructeur d'un monstre de base
+	 * @param positionX La composante x de la position
+	 * @param positionY La composante y de la position
+	 */
+	public Monstre(double positionX, double positionY) {
+		super(positionX, positionY);
+	}
+	/**
+	 * Constructeur d'un monstre a l'aide de la classe StatsMonstres
+	 * @param stats Les caracteristiques du monstre
+	 */
+	public Monstre(StatsMonstres stats) {
+		super(0, 0, stats.getVitesseDeDeplacement(), stats.getHauteurDeSaut(), stats.getMasse(), stats.getLargeur(), stats.getHauteur(), stats.getVieRegenereParSeconde());	
+		monstre = stats;	
+		switch (Monde.difficulte) {
+		case DIFFICILE:
+			valeurDifficulte = 1;
+			break;
+		case FACILE:
+			valeurDifficulte = 0.5;
+			break;
+		case GODMODE:
+			valeurDifficulte = 1;
+			break;
+		case MOYEN:
+			valeurDifficulte = 0.75;
+			break;		
+		}
+	}	
+	/**
+	 * Dessine les monstres
+	 * @param g2d Le contexte graphique
+	 * @param mat La matrice de transformation
+	 */
+	public void dessiner(Graphics2D g2d, AffineTransform mat) {
+		Color avant = g2d.getColor();
+
+		if(!monstre.getSprite().getEtat().equals(etat)) monstre.getSprite().setEtat(etat);		
+		Sprite temp = monstre.getSprite();
+
+		super.dessiner(g2d, mat);
+		AffineTransform matSprite = new AffineTransform(mat);
+
+		if(droite){
+			matSprite.translate(getPositionX(), getPositionY() + this.getHauteur());
+			matSprite.scale(monstre.getLargeur()/temp.getLargeur(), -monstre.getHauteur()/temp.getHauteur());
+		}else{
+			matSprite.translate(getPositionX() + this.getLargeur(), getPositionY() + this.getHauteur());
+			matSprite.scale(-monstre.getLargeur()/temp.getLargeur(), -monstre.getHauteur()/temp.getHauteur());
+		}
+		monstre.getSprite().dessiner(g2d, matSprite);	
+		dessinerBareDeVie(g2d, mat);
+		g2d.setColor(avant);
+	}
+	/**
+	 * Dessine la barre de vie des monstres
+	 * @param g2d Le contexte graphique
+	 * @param mat La matrice de transformation
+	 */
+	private void dessinerBareDeVie(Graphics2D g2d, AffineTransform mat) {	
+		AffineTransform matLocale = new AffineTransform(mat);
+		Rectangle2D.Double rectRouge = new Rectangle2D.Double(getPositionX(), getPositionY() + getHauteur(), getLargeur(), hauteurBarre);
+		
+		double longueurVieRestante = getLargeur() * (getPointsDeVie() / getPointsDeVieMaximum());
+		Rectangle2D.Double rectVert  = new Rectangle2D.Double(getPositionX(), getPositionY() + getHauteur(), longueurVieRestante, hauteurBarre);
+		
+		//dessine la partie rouge qui represente la vie perdue du monstre
+		g2d.setColor(Color.red);
+		g2d.fill(matLocale.createTransformedShape(rectRouge));
+		
+		//dessine la partie verte qui represente la vie restante du monstre
+		g2d.setColor(Color.green);
+		g2d.fill(matLocale.createTransformedShape(rectVert));
+		
+		//dessine contour noir
+		g2d.setColor(Color.black);
+		g2d.draw(matLocale.createTransformedShape(rectRouge));
+	}
+	
+	/**
+	 * Calcule les degats faits au monstre et les degats faits par le monstre
+	 * @param degatsJoueur Les degats faits par le joueur
+	 */
+	public void updateCombat() {		
+		degatsFaits = DEGATS_DE_BASE * valeurDifficulte * nightTimeMultiplier;
+	}	
+	/**
+	 * Vérifie si le monstre voit la position
+	 * @param position Une position
+	 * @param plat Une liste de plateformes
+	 * @return Si le monstre voit la position
+	 */
+	public boolean lineOfSight(EntitePhysique entite, List<Plateforme> plat) {
+		Line2D.Double vueDroite  = new Line2D.Double(getPositionX()+getLargeur(), getPositionY()+getHauteur()*0.75, entite.getPositionX()+entite.getLargeur(), entite.getPositionY()+entite.getHauteur()*0.75);
+		Line2D.Double vueGauche = new Line2D.Double(getPositionX(), getPositionY()+getHauteur()*0.75, entite.getPositionX(), entite.getPositionY()+entite.getHauteur()*0.75);
+		for(int i=0; i<plat.size(); i++){
+			if(vueDroite.intersects(plat.get(i).getZoneCollision()) && vueGauche.intersects(plat.get(i).getZoneCollision())){
+				return false;
+			}
+		}
+		return true;
+	}
+	/**
+	 * Thread qui déplace le monstre pendant un certain nombre de frames
+	 * @param butX But à atteindre en x
+	 * @param butY But à atteindre en y
+	 */
+	private void bougerMonstre(int butX, int butY){
+		Monstre monstre = this;
+		Thread t = new Thread(new Runnable(){		
+			public void run() {	
+				for(int i=0; i < nbreFrame; i++){
+					PathFinding.path((int)getPositionX(), (int)getPositionY(), butX, butY, monstre);
+					//System.out.println("Monstre bouge");
+					try {			
+						Thread.sleep((long) (1000/Constantes.FPS));
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}	
+					arreterBouger();
+				}
+			}
+			
+		}); t.start();
+	}
+	/**
+	 * Démarre le thread qui déplace le monstre
+	 * @param butX But en x à atteindre
+	 * @param butY But en y à atteindre
+	 * @param nbreFrames Le nombre de frames pendant lesquelles le monstre se déplace
+	 */
+	public void deplaceMonstre(int butX, int butY, int nbreFrames){
+		this.nbreFrame = nbreFrames;
+		//System.out.println("marche");
+		bougerMonstre(butX, butY);
+	}
+	/**
+	 * Met a jour les points de vie du monstre
+	 */
+	public void updatePointsDeVie() {
+		setPointsDeVieMaximum(valeurDifficulte * VIE_DE_BASE); 
+	}
+	
+	//debut getters
+	/**
+	 * Envoye l'experience donne apres avoir tue un monstre
+	 * @return exp L'experience
+	 */
+	public double getExpDonnee() {
+		return (EXPERIENCE_DE_BASE * valeurDifficulte * nightTimeMultiplier);
+	}
+	/**
+	 * Envoye si le monstre est mort
+	 * @return Si le monstre est mort
+	 */
+	public boolean isDead() {
+		return getPointsDeVie() <= 0; 
+	}
+	/**
+	 * Envoye les degats faits par le monstre
+	 * @return degatsFaits Les degats faits
+	 */
+	public double getDegatsFaits() {
+		return degatsFaits;
+	}
+	/**
+	 * Envoye si le monstre est entrain de viser
+	 * @return vise Si le monstre vise
+	 */
+	public boolean isTargeting(){
+		return vise;
+	}
+	/**
+	 * Envoye le sprite du monstre
+	 * @return Le sprite
+	 */
+	public Sprite getSprite() {
+		return monstre.getSprite();
+	}
+	/**
+	 * Envoye les pieces d'or donnees par ce monstre
+	 * @return gold Les pieces d'or
+	 */
+	public int getGold() {
+		return gold;
+	}
+	//fin getters
+	
+	//debut setters
+	public void setNightTime(boolean nightTime) {
+		if (nightTime)
+			nightTimeMultiplier = 1.5;
+		else 
+			nightTimeMultiplier = 1;
+	}
+	/**
+	 * Definit la valeur de difficulte du monstre
+	 * @param valeurDifficulte La valeur de difficulte
+	 */
+	public void setValeurDifficulte(double valeurDifficulte) {
+		this.valeurDifficulte = valeurDifficulte;		
+		//this.gold = (int)Math.floor(2.5 * valeurDifficulte);
+		updatePointsDeVie();
+	}
+	/**
+	 * Definit si le monstre est entrain de viser
+	 * @param vise Si le monstre vise
+	 */
+	public void setIsTargeting(boolean vise){
+		this.vise = vise;
+	}
+	/**
+	 * Ajoute une piece d'or a ce monstre
+	 */
+	public void addGold() {
+		this.gold++;
+	}
+	//fin setters
+	
+}

@@ -1,0 +1,199 @@
+package environnement;
+
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Random;
+
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+
+import fusee.Fusee;
+import interfaces.Constantes;
+import interfaces.Dessinable;
+import item.Item;
+
+/**
+ * Classe qui gere les coffres de butin
+ * @author Antoine
+ *
+ */
+public class Coffre extends Environnement implements Dessinable {
+	private ImageIcon image;
+	private URL url = null;
+	private Rectangle2D.Double zoneCollision;
+	private double largeur, hauteur;
+	private ArrayList<Item>listeItems = new ArrayList<>();
+	private int gold;
+	private boolean ferme = true;
+	//private DecimalFormat format = new DecimalFormat("##");
+	private double positionX, positionY;
+	private ArrayList<Object> contenu = new ArrayList<>();
+	private int rarete = 0;
+	private Random rand = new Random();
+
+	/**
+	 * Constructeur d'un coffre
+	 * @param x La composante x de la position
+	 * @param y La composante y de la position
+	 * @param rarete La rarete
+	 * @param gold Les pieces d'or
+	 * @param nbItems Le nombre d'items
+	 */
+	public Coffre(double x, double y, int rarete, int gold, int nbItems){
+
+		positionX = x;
+		positionY = y;
+
+		for(int i = 0; i < nbItems; i++){
+			String itemId = rand.nextInt(28) + "";
+			if (itemId.length() == 1) itemId = "0" + itemId;
+			listeItems.add(new Item(itemId)); 
+		}
+		
+		this.gold = gold;
+		
+		contenu.addAll(listeItems);
+		contenu.add(gold);
+		
+		int chancesFusee = rand.nextInt(3);
+		if (chancesFusee == 2) 
+			contenu.add(new Fusee());
+
+		this.rarete = rarete;
+
+		image = Constantes.coffresFermes[rarete].getImageIcon();
+
+	}
+	/**
+	 * Constructeur d'un coffre avec un nom
+	 * @param nom Le nom du coffre
+	 */
+	public Coffre(String nom){
+
+		url = getClass().getClassLoader().getResource(nom);
+		try {
+			image = new ImageIcon(ImageIO.read(url));
+		} 
+		catch (IOException e) {
+			System.out.println("IOException lors de la lecture avec ImageIO");
+		}
+	}
+
+	/**
+	 * Definit les dimensions de l'image
+	 */
+	private void setDimensionImage(){
+		largeur = image.getImage().getWidth(null) * 0.06;
+		hauteur = image.getImage().getHeight(null) * 0.035;
+	}
+
+	/**
+	 * Dessine le coffre
+	 * @param g2d Le contexte graphique
+	 * @param mat La matrice de transformation
+	 */
+	public void dessiner(Graphics2D g2d, AffineTransform mat) {
+		setDimensionImage();
+		AffineTransform matImage = new AffineTransform(mat);
+		
+		matImage.translate(positionX, positionY+1);
+		matImage.scale(0.0625, 0.0625);
+		
+		try {
+			g2d.drawImage(image.getImage(), matImage, null);		
+		} catch (IndexOutOfBoundsException e) {
+			//System.out.println("out of bounds");
+		}
+		AffineTransform matZone = new AffineTransform(mat);
+		matZone.translate(0, 1);	
+		zoneCollision = new Rectangle2D.Double(positionX, positionY, largeur, hauteur);
+	}
+	/**
+	 * Change l'etat du coffre et de son contenu
+	 * @return contenu Le contenu
+	 */
+	public ArrayList<Object> ouvrirCoffre(){
+		ArrayList<Object> temp = new ArrayList<>();
+		if(ferme){
+			for(int i = 0; i<contenu.size(); i++){
+				temp.add(contenu.get(i));
+			}
+			contenu.clear();
+			ferme = false;
+			image = Constantes.coffresOuverts[rarete].getImageIcon();
+		}
+		return temp;
+	}
+	//debut getters
+	/**
+	 * Envoye la largeur du item
+	 * @return largeur La largeur
+	 */
+	public double getLargeur() {
+		return largeur;
+	}
+	/**
+	 * Envoye la hauteur du item
+	 * @return hauteur La hauteur
+	 */
+	public double getHauteur() {
+		return hauteur;
+	}
+	/**
+	 * Envoye le rectangle de la zone de collision
+	 * @return zoneCollision La zone de collision
+	 */
+	public Rectangle2D.Double getZoneCollision() {
+		return zoneCollision;
+	}
+	/**
+	 * Envoye l'imageIcon
+	 * @return l'imageIcon
+	 */
+	public ImageIcon getImageIcon(){
+		return image;
+	}
+	/**
+	 * Envoye les pieces d'or dans le coffre
+	 * @return gold Les pieces d'or
+	 */
+	public int getGold() {
+		return gold;
+	}
+	//fin getters
+
+	//debut setters
+	/**
+	 * Definit la largeur du item
+	 * @param largeur Une largeur
+	 */
+	public void setLargeur(double largeur) {
+		this.largeur = largeur;
+	}
+	/**
+	 * Definit la hauteur du item
+	 * @param hauteur Une hauteur
+	 */
+	public void setHauteur(double hauteur) {
+		this.hauteur = hauteur;
+	}
+	/**
+	 * Definit la zone de collision du item
+	 * @param zoneCollision Une zone de collision
+	 */
+	public void setZoneCollision(Rectangle2D.Double zoneCollision) {
+		this.zoneCollision = zoneCollision;
+	}
+	/**
+	 * Definit les pieces d'or du coffre
+	 * @param gold Les pieces d'or
+	 */
+	public void setGold(int gold) {
+		this.gold = gold;
+	}
+	//fin setters
+}
